@@ -1,5 +1,5 @@
 // pages/api/admin/metrics.js
-import { securityManager } from '../../../lib/security'
+import { securityManager } from '../../lib/security'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
