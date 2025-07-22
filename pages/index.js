@@ -130,7 +130,7 @@ export default function Home() {
         <nav className="bg-white/90 backdrop-blur-md shadow-md sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-center">
-              <div className="flex space-x-1 p-1 bg-gray-100 rounded-xl my-4">
+              <div className="flex flex-col sm:flex-row sm:space-x-1 space-y-2 sm:space-y-0 p-2 sm:p-1 bg-gray-100 rounded-xl my-4 w-full sm:w-auto">
                 {tabs.map((tab) => {
                   const Icon = tab.icon
                   const isActive = activeTab === tab.id
@@ -138,7 +138,7 @@ export default function Home() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={`relative px-6 py-3 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 min-w-[160px] justify-center ${
+                      className={`relative px-4 sm:px-6 py-3 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 sm:min-w-[160px] justify-center w-full sm:w-auto ${
                         isActive
                           ? 'bg-white text-gray-800 shadow-md transform scale-105'
                           : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
@@ -147,7 +147,7 @@ export default function Home() {
                       <Icon className={`w-5 h-5 ${isActive ? 'text-blue-500' : ''}`} />
                       <div className="text-center">
                         <div className="font-semibold">{tab.label}</div>
-                        <div className="text-xs text-gray-500">{tab.description}</div>
+                        <div className="text-xs text-gray-500 hidden sm:block">{tab.description}</div>
                       </div>
                       {isActive && (
                         <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-500 rounded-full -mb-2"></div>
