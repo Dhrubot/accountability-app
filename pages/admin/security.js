@@ -13,27 +13,50 @@ export default function AdminSecurity() {
     errorRate: 0
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     fetchSecurityMetrics()
-    const interval = setInterval(fetchSecurityMetrics, 10000) // Update every 10 seconds
-    return () => clearInterval(interval)
   }, [])
 
-  const fetchSecurityMetrics = async () => {
+  const fetchSecurityMetrics = async (isManualRefresh = false) => {
     try {
-      const response = await fetch('/api/admin/security-metrics', {
-        credentials: 'include'
+      if (isManualRefresh) {
+        setIsRefreshing(true)
+      }
+      
+      // Use fresh=true for manual refreshes to bypass cache
+      const freshParam = isManualRefresh ? '?fresh=true' : ''
+      
+      const response = await fetch(`/api/admin/security-metrics${freshParam}`, {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': isManualRefresh ? 'no-cache' : 'max-age=300'
+        }
       })
+      
       if (response.ok) {
         const data = await response.json()
+        
+        // Show cache status in console for debugging
+        if (data.cached) {
+          console.log(`📦 Security metrics served from cache (${data.cacheAge}s old)`)
+        }
+        
         setMetrics(data)
       }
     } catch (error) {
       console.error('Failed to fetch security metrics:', error)
     } finally {
       setIsLoading(false)
+      if (isManualRefresh) {
+        setIsRefreshing(false)
+      }
     }
+  }
+
+  const handleRefresh = () => {
+    fetchSecurityMetrics(true)
   }
 
   const getThreatLevelColor = (level) => {
@@ -113,6 +136,13 @@ export default function AdminSecurity() {
               <span className="text-green-600 font-medium">Active</span>
             </div>
           </div>
+          <button
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
       </div>
     </AdminLayout>

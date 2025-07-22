@@ -21,26 +21,20 @@ export default function AdminDashboard() {
   })
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    // Check authentication first
+    // Check authentication first and fetch initial data
     checkAuth().then(authenticated => {
       if (authenticated) {
         setIsAuthenticated(true)
         fetchDashboardData()
-        const interval = setInterval(() => {
-          // Only fetch if still authenticated
-          if (isAuthenticated) {
-            fetchDashboardData()
-          }
-        }, 30000)
-        return () => clearInterval(interval)
       } else {
         router.push('/admin/login')
       }
     })
-  }, [isAuthenticated])
+  }, [])
 
   const checkAuth = async () => {
     try {
@@ -51,17 +45,42 @@ export default function AdminDashboard() {
     }
   }
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (isManualRefresh = false) => {
     try {
+      if (isManualRefresh) {
+        setIsRefreshing(true)
+      }
+      
+      // Use fresh=true for manual refreshes to bypass cache
+      const freshParam = isManualRefresh ? '?fresh=true' : ''
+      
       // Fetch stats
       const [casesResponse, securityResponse] = await Promise.all([
-        fetch('/api/admin/stats', { credentials: 'include' }),
-        fetch('/api/admin/security-metrics', { credentials: 'include' })
+        fetch(`/api/admin/stats${freshParam}`, { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': isManualRefresh ? 'no-cache' : 'max-age=300'
+          }
+        }),
+        fetch(`/api/admin/security-metrics${freshParam}`, { 
+          credentials: 'include',
+          headers: {
+            'Cache-Control': isManualRefresh ? 'no-cache' : 'max-age=300'
+          }
+        })
       ])
 
       if (casesResponse.ok && securityResponse.ok) {
         const casesData = await casesResponse.json()
         const securityData = await securityResponse.json()
+
+        // Show cache status in console for debugging
+        if (casesData.cached) {
+          console.log(`📦 Stats served from cache (${casesData.cacheAge}s old)`)
+        }
+        if (securityData.cached) {
+          console.log(`📦 Security metrics served from cache (${securityData.cacheAge}s old)`)
+        }
 
         setStats({
           cases: casesData,
@@ -78,7 +97,14 @@ export default function AdminDashboard() {
       console.error('Failed to fetch dashboard data:', error)
     } finally {
       setIsLoading(false)
+      if (isManualRefresh) {
+        setIsRefreshing(false)
+      }
     }
+  }
+
+  const handleRefresh = () => {
+    fetchDashboardData(true)
   }
 
   const exportData = async () => {
@@ -151,6 +177,16 @@ export default function AdminDashboard() {
             >
               <DocumentArrowDownIcon className="w-5 h-5" />
               <span>Export Data</span>
+            </button>
+            <button
+              onClick={handleRefresh}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {isRefreshing ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              ) : (
+                <span>Refresh Data</span>
+              )}
             </button>
             <button
               onClick={() => router.push('/admin/cases')}

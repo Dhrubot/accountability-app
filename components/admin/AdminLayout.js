@@ -24,21 +24,14 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
   const [authError, setAuthError] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
+  const [isRefreshingNotifications, setIsRefreshingNotifications] = useState(false)
   const router = useRouter()
   const notificationRef = useRef(null)
 
   useEffect(() => {
     checkAuth(requireFreshAuth)
-    // Check for notifications
+    // Check for notifications on initial load
     checkNotifications()
-    
-    // Set up notification polling (every 30 seconds)
-    const notificationInterval = setInterval(() => {
-      // Only check notifications if admin is still authenticated
-      if (admin) {
-        checkNotifications()
-      }
-    }, 30000)
     
     // Click outside handler for notification dropdown
     const handleClickOutside = (event) => {
@@ -50,10 +43,9 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
     document.addEventListener('mousedown', handleClickOutside)
     
     return () => {
-      clearInterval(notificationInterval)
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [requireFreshAuth, admin])
+  }, [requireFreshAuth])
 
   const checkAuth = async (useFresh = false) => {
     try {
@@ -104,8 +96,12 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
     }
   }
 
-  const checkNotifications = async () => {
+  const checkNotifications = async (isManualRefresh = false) => {
     try {
+      if (isManualRefresh) {
+        setIsRefreshingNotifications(true)
+      }
+      
       // This would check for pending cases, security alerts, etc.
       const response = await fetch('/api/admin/notifications', {
         credentials: 'include'
@@ -123,7 +119,15 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
     } catch (error) {
       // Fail silently for notifications
       console.warn('Failed to fetch notifications:', error)
+    } finally {
+      if (isManualRefresh) {
+        setIsRefreshingNotifications(false)
+      }
     }
+  }
+
+  const handleRefreshNotifications = () => {
+    checkNotifications(true)
   }
 
   const getNotificationIcon = (type) => {
@@ -481,6 +485,17 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
                           className="text-sm text-gray-600 hover:text-gray-800 font-medium"
                         >
                           Clear all notifications
+                        </button>
+                        <button
+                          onClick={handleRefreshNotifications}
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium ml-2"
+                          disabled={isRefreshingNotifications}
+                        >
+                          {isRefreshingNotifications ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                          ) : (
+                            'Refresh'
+                          )}
                         </button>
                       </div>
                     )}
