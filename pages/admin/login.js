@@ -1,4 +1,4 @@
-// pages/admin/login.js
+// pages/admin/login.js - Enhanced version with better error handling
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
@@ -6,7 +6,8 @@ import {
   ShieldCheckIcon, 
   ExclamationTriangleIcon,
   EyeIcon,
-  EyeSlashIcon 
+  EyeSlashIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline'
 
 export default function AdminLogin() {
@@ -17,6 +18,7 @@ export default function AdminLogin() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const router = useRouter()
 
   // Check if already logged in
@@ -35,6 +37,8 @@ export default function AdminLogin() {
       }
     } catch (error) {
       // Not logged in, stay on login page
+    } finally {
+      setIsCheckingAuth(false)
     }
   }
 
@@ -60,10 +64,21 @@ export default function AdminLogin() {
         localStorage.setItem('adminInfo', JSON.stringify(result.admin))
         router.push('/admin/dashboard')
       } else {
-        setError(result.error || 'Login failed')
+        // Handle specific error cases
+        if (response.status === 429) {
+          setError('Too many login attempts. Please try again later.')
+        } else if (response.status === 401) {
+          if (result.error === 'No admin access') {
+            setError('This account does not have admin privileges.')
+          } else {
+            setError('Invalid email or password.')
+          }
+        } else {
+          setError(result.error || 'Login failed. Please try again.')
+        }
       }
     } catch (error) {
-      setError('Network error. Please try again.')
+      setError('Network error. Please check your connection and try again.')
     } finally {
       setIsLoading(false)
     }
@@ -75,6 +90,18 @@ export default function AdminLogin() {
       [e.target.name]: e.target.value
     })
     setError('') // Clear error when typing
+  }
+
+  // Show loading state while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Checking authentication...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -111,6 +138,7 @@ export default function AdminLogin() {
                     required
                     placeholder="admin@voicesofuttara.org"
                     className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    disabled={isLoading}
                   />
                 </div>
               </div>
@@ -128,11 +156,13 @@ export default function AdminLogin() {
                     required
                     placeholder="Enter your password"
                     className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 pr-12"
+                    disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-300 hover:text-white transition-colors"
+                    disabled={isLoading}
                   >
                     {showPassword ? (
                       <EyeSlashIcon className="w-5 h-5" />

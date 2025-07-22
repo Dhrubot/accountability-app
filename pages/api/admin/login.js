@@ -1,3 +1,4 @@
+
 // pages/api/admin/login.js
 import { AdminAuth } from '../../../lib/adminAuth'
 import { securityManager } from '../../../lib/security'
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
         req.headers['user-agent']
       )
 
-      // Set secure cookie
+      // Set secure cookie with Supabase token
       const cookieOptions = [
         `adminToken=${result.token}`,
         'HttpOnly',
