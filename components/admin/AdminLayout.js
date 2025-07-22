@@ -1,5 +1,5 @@
 // components/admin/AdminLayout.js - Enhanced with cache control
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { 
@@ -12,7 +12,9 @@ import {
   XMarkIcon,
   BellIcon,
   CogIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline'
 
 export default function AdminLayout({ children, requireFreshAuth = false }) {
@@ -21,12 +23,31 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
   const [isLoading, setIsLoading] = useState(true)
   const [authError, setAuthError] = useState(null)
   const [notifications, setNotifications] = useState([])
+  const [showNotifications, setShowNotifications] = useState(false)
   const router = useRouter()
+  const notificationRef = useRef(null)
 
   useEffect(() => {
     checkAuth(requireFreshAuth)
     // Check for notifications
     checkNotifications()
+    
+    // Set up notification polling (every 30 seconds)
+    const notificationInterval = setInterval(checkNotifications, 30000)
+    
+    // Click outside handler for notification dropdown
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    
+    return () => {
+      clearInterval(notificationInterval)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [requireFreshAuth])
 
   const checkAuth = async (useFresh = false) => {
@@ -92,6 +113,50 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
     } catch (error) {
       // Fail silently for notifications
       console.warn('Failed to fetch notifications:', error)
+    }
+  }
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'error':
+        return <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
+      case 'warning':
+        return <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500" />
+      case 'success':
+        return <CheckCircleIcon className="w-5 h-5 text-green-500" />
+      default:
+        return <InformationCircleIcon className="w-5 h-5 text-blue-500" />
+    }
+  }
+
+  const getNotificationBgColor = (type) => {
+    switch (type) {
+      case 'error':
+        return 'bg-red-50 border-red-200'
+      case 'warning':
+        return 'bg-yellow-50 border-yellow-200'
+      case 'success':
+        return 'bg-green-50 border-green-200'
+      default:
+        return 'bg-blue-50 border-blue-200'
+    }
+  }
+
+  const formatNotificationTime = (timestamp) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60))
+    
+    if (diffInMinutes < 1) return 'Just now'
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
+    return date.toLocaleDateString()
+  }
+
+  const handleNotificationClick = (notification) => {
+    if (notification.actionUrl) {
+      router.push(notification.actionUrl)
+      setShowNotifications(false)
     }
   }
 
@@ -326,14 +391,95 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
 
             <div className="flex items-center space-x-4">
               {/* Notifications */}
-              <button className="p-2 text-gray-400 hover:text-gray-600 relative">
-                <BellIcon className="w-6 h-6" />
-                {notifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                    {notifications.length > 9 ? '9+' : notifications.length}
-                  </span>
+              <div className="relative" ref={notificationRef}>
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 text-gray-400 hover:text-gray-600 relative transition-colors"
+                >
+                  <BellIcon className="w-6 h-6" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-medium">
+                      {notifications.length > 9 ? '9+' : notifications.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notification Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          Notifications ({notifications.length})
+                        </h3>
+                        <button
+                          onClick={() => setShowNotifications(false)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-gray-500">
+                          <BellIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                          <p className="text-sm">No new notifications</p>
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${getNotificationBgColor(notification.type)}`}
+                            onClick={() => handleNotificationClick(notification)}
+                          >
+                            <div className="flex items-start space-x-3">
+                              <div className="flex-shrink-0 mt-0.5">
+                                {getNotificationIcon(notification.type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {notification.title}
+                                  </p>
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    {formatNotificationTime(notification.timestamp)}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                {notification.actionUrl && (
+                                  <div className="mt-2">
+                                    <span className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                      View Details →
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    
+                    {notifications.length > 0 && (
+                      <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                        <button
+                          onClick={() => {
+                            setNotifications([])
+                            setShowNotifications(false)
+                          }}
+                          className="text-sm text-gray-600 hover:text-gray-800 font-medium"
+                        >
+                          Clear all notifications
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
-              </button>
+              </div>
 
               {/* Refresh auth button for sensitive pages */}
               {requireFreshAuth && (
