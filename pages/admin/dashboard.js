@@ -106,7 +106,7 @@ export default function AdminDashboard() {
   return (
     <AdminLayout>
       <Head>
-        <title>Admin Dashboard - Voices of Uttara</title>
+        <title>Admin Dashboard - Onushondhan</title>
       </Head>
 
       <div className="space-y-6">

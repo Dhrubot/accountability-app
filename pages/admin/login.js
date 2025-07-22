@@ -107,7 +107,7 @@ export default function AdminLogin() {
   return (
     <>
       <Head>
-        <title>Admin Login - Voices of Uttara</title>
+        <title>Admin Login - Onushondhan</title>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
 
@@ -119,7 +119,7 @@ export default function AdminLogin() {
               <ShieldCheckIcon className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-3xl font-bold text-white mb-2">Admin Access</h2>
-            <p className="text-gray-300">Voices of Uttara - Memorial Registry</p>
+            <p className="text-gray-300">Onushondhan - Memorial Registry</p>
           </div>
 
           {/* Login Form */}
@@ -136,7 +136,7 @@ export default function AdminLogin() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    placeholder="admin@voicesofuttara.org"
+                    placeholder="support@onushondhan.org"
                     className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     disabled={isLoading}
                   />

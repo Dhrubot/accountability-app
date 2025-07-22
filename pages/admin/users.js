@@ -176,7 +176,7 @@ export default function AdminUsers() {
   return (
     <>
       <Head>
-        <title>Admin Users - Voices of Uttara</title>
+        <title>Admin Users - Onushondhan</title>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
 

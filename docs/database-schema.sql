@@ -1,5 +1,5 @@
 -- =============================================
--- VOICES OF UTTARA - COMPLETE MERGED SUPABASE SCHEMA
+-- Onushondhan - COMPLETE MERGED SUPABASE SCHEMA
 -- =============================================
 
 -- First, clean up any existing tables and policies

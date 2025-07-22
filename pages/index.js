@@ -58,7 +58,7 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Voices of Uttara - Milestone Crash Registry</title>
+        <title>Onushondhan - Milestone Crash Registry</title>
         <meta name="description" content="Memorial and accountability platform for victims of the July 21, 2025 Dhaka plane crash" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
@@ -75,7 +75,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                    Voices of Uttara
+                    Onushondhan
                   </h1>
                   <p className="text-sm text-gray-600 font-medium">
                     Memorial Registry - July 21, 2025 Milestone School Tragedy
@@ -198,7 +198,7 @@ export default function Home() {
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                     <span className="text-white">🏫</span>
                   </div>
-                  <h3 className="text-xl font-bold">Voices of Uttara</h3>
+                  <h3 className="text-xl font-bold">Onushondhan</h3>
                 </div>
                 <p className="text-gray-300 mb-4">
                   A memorial and accountability platform dedicated to documenting and remembering 

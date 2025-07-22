@@ -308,7 +308,7 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900">Admin Panel</h2>
-              <p className="text-xs text-gray-500">Voices of Uttara</p>
+              <p className="text-xs text-gray-500">Onushondhan</p>
             </div>
           </div>
 

@@ -3,6 +3,38 @@ import { supabaseAdmin, logAdminActivity } from '../../../lib/supabase'
 import { requireAdmin, AdminAuth } from '../../../lib/adminAuth'
 import { securityManager } from '../../../lib/security'
 
+// Import cache invalidation functions
+let invalidateCasesCache, invalidatePublicCasesCache, invalidateTestimoniesCache
+try {
+  const adminCasesModule = require('./cases.js')
+  invalidateCasesCache = adminCasesModule.invalidateCasesCache
+} catch (error) {
+  console.warn('Could not import admin cache invalidation function')
+  invalidateCasesCache = () => {} // Fallback no-op function
+}
+try {
+  const publicCasesModule = require('../cases.js')
+  invalidatePublicCasesCache = publicCasesModule.invalidatePublicCasesCache
+} catch (error) {
+  console.warn('Could not import public cache invalidation function')
+  invalidatePublicCasesCache = () => {} // Fallback no-op function
+}
+try {
+  const testimoniesModule = require('../testimonies.js')
+  invalidateTestimoniesCache = testimoniesModule.invalidateTestimoniesCache
+} catch (error) {
+  console.warn('Could not import testimonies cache invalidation function')
+  invalidateTestimoniesCache = () => {} // Fallback no-op function
+}
+
+// Helper function to invalidate all related caches when case is verified
+function invalidateAllCasesCache(caseId) {
+  if (invalidateCasesCache) invalidateCasesCache(caseId)
+  if (invalidatePublicCasesCache) invalidatePublicCasesCache()
+  if (invalidateTestimoniesCache) invalidateTestimoniesCache(caseId)
+  console.log(`All caches invalidated for case verification: ${caseId}`)
+}
+
 export default async function handler(req, res) {
   const ip = securityManager.getClientIP(req)
 
@@ -99,6 +131,9 @@ export default async function handler(req, res) {
       securityManager.updateMetrics('errors')
       return res.status(500).json({ error: 'Failed to update case' })
     }
+
+    // Invalidate all related caches since case verification status changed
+    invalidateAllCasesCache(caseId)
 
     // Comprehensive activity logging with full context
     await logAdminActivity(`case_${action}`, {

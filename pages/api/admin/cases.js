@@ -2,6 +2,73 @@
 import { supabaseAdmin, logAdminActivity } from '../../../lib/supabase'
 import { requireAdmin } from '../../../lib/adminAuth'
 
+// Cache for cases data
+let casesCache = new Map()
+let cacheTimestamps = new Map()
+const CASES_CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+const CASE_DETAIL_CACHE_DURATION = 10 * 60 * 1000 // 10 minutes for individual cases
+const SEARCH_CACHE_DURATION = 3 * 60 * 1000 // 3 minutes for search results
+
+let invalidatePublicCasesCache, invalidateTestimoniesCache
+try {
+  const publicCasesModule = require('../cases.js')
+  invalidatePublicCasesCache = publicCasesModule.invalidatePublicCasesCache
+} catch (error) {
+  invalidatePublicCasesCache = () => {}
+}
+try {
+  const testimoniesModule = require('../testimonies.js')
+  invalidateTestimoniesCache = testimoniesModule.invalidateTestimoniesCache
+} catch (error) {
+  invalidateTestimoniesCache = () => {}
+}
+
+// Helper function to generate cache key
+function generateCacheKey(params) {
+  const { filter, page, limit, search, sortBy, sortOrder, dateFrom, dateTo } = params
+  return `cases_${filter || 'all'}_${page}_${limit}_${search || ''}_${sortBy}_${sortOrder}_${dateFrom || ''}_${dateTo || ''}`
+}
+
+// Helper function to check if cache is valid
+function isCacheValid(key, duration = CASES_CACHE_DURATION) {
+  const timestamp = cacheTimestamps.get(key)
+  return timestamp && (Date.now() - timestamp < duration)
+}
+
+// Helper function to set cache
+function setCache(key, data, duration = CASES_CACHE_DURATION) {
+  casesCache.set(key, data)
+  cacheTimestamps.set(key, Date.now())
+  
+  // Auto-cleanup expired entries after setting new cache
+  setTimeout(() => {
+    if (!isCacheValid(key, duration)) {
+      casesCache.delete(key)
+      cacheTimestamps.delete(key)
+    }
+  }, duration + 1000)
+}
+
+// Helper function to invalidate related caches
+function invalidateCasesCache(caseId = null) {
+  if (caseId) {
+    // Invalidate specific case cache
+    casesCache.delete(`case_${caseId}`)
+    cacheTimestamps.delete(`case_${caseId}`)
+  }
+  
+  // Invalidate all cases list caches
+  for (const key of casesCache.keys()) {
+    if (key.startsWith('cases_')) {
+      casesCache.delete(key)
+      cacheTimestamps.delete(key)
+    }
+  }
+  // Invalidate public and testimonies caches
+  if (invalidatePublicCasesCache) invalidatePublicCasesCache()
+  if (invalidateTestimoniesCache) invalidateTestimoniesCache(caseId)
+}
+
 export default async function handler(req, res) {
   try {
     // Use cached auth for regular case viewing
@@ -41,6 +108,13 @@ async function handleGetCases(req, res, auth) {
     dateFrom,
     dateTo
   } = req.query
+
+  const cacheKey = generateCacheKey({ filter, page, limit, search, sortBy, sortOrder, dateFrom, dateTo })
+
+  if (isCacheValid(cacheKey)) {
+    const cachedData = casesCache.get(cacheKey)
+    return res.status(200).json(cachedData)
+  }
 
   try {
     // Use supabaseAdmin for bypassing RLS
@@ -107,7 +181,7 @@ async function handleGetCases(req, res, auth) {
       }
     })
 
-    res.status(200).json({ 
+    const response = { 
       cases: cases || [],
       pagination: {
         page: parseInt(page),
@@ -115,7 +189,11 @@ async function handleGetCases(req, res, auth) {
         total: totalCount || 0,
         pages: Math.ceil((totalCount || 0) / parseInt(limit))
       }
-    })
+    }
+
+    setCache(cacheKey, response)
+
+    res.status(200).json(response)
   } catch (error) {
     console.error('Get cases error:', error)
     res.status(500).json({ error: 'Failed to fetch cases' })
@@ -152,6 +230,8 @@ async function handleCreateCase(req, res, auth) {
       details: { case_name: newCase[0].name }
     })
 
+    invalidateCasesCache()
+
     res.status(201).json({ case: newCase[0] })
   } catch (error) {
     console.error('Create case error:', error)
@@ -187,6 +267,8 @@ async function handleUpdateCase(req, res, auth) {
       target_id: id,
       details: { case_name: updatedCase[0]?.name, updated_fields: Object.keys(updateData) }
     })
+
+    invalidateCasesCache(id)
 
     res.status(200).json({ case: updatedCase[0] })
   } catch (error) {
@@ -230,6 +312,8 @@ async function handleDeleteCase(req, res, auth) {
       target_id: id,
       details: { case_name: caseToDelete?.name }
     })
+
+    invalidateCasesCache(id)
 
     res.status(200).json({ success: true, message: 'Case deleted successfully' })
   } catch (error) {
