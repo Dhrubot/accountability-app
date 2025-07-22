@@ -68,21 +68,24 @@ export default function Home() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-2xl text-white">🏫</span>
+            <div className="flex justify-between items-center py-4 sm:py-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-600 to-purple-700 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-xl sm:text-2xl text-white">🏫</span>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                  <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                     Onushondhan
                   </h1>
-                  <p className="text-sm text-gray-600 font-medium">
+                  <p className="text-xs sm:text-sm text-gray-600 font-medium hidden sm:block">
                     Memorial Registry - July 21, 2025 Milestone School Tragedy
+                  </p>
+                  <p className="text-xs text-gray-600 font-medium sm:hidden">
+                    Memorial Registry
                   </p>
                 </div>
               </div>
-              <div className="hidden md:flex items-center space-x-6 text-sm">
+              <div className="hidden lg:flex items-center space-x-6 text-sm">
                 <div className="flex items-center text-gray-600">
                   <ShieldCheckIcon className="w-4 h-4 mr-2 text-green-500" />
                   <span>Secure & Verified</span>
