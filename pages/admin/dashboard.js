@@ -20,13 +20,36 @@ export default function AdminDashboard() {
     recent: []
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    fetchDashboardData()
-    const interval = setInterval(fetchDashboardData, 30000) // Update every 30 seconds
-    return () => clearInterval(interval)
-  }, [])
+    // Check authentication first
+    checkAuth().then(authenticated => {
+      if (authenticated) {
+        setIsAuthenticated(true)
+        fetchDashboardData()
+        const interval = setInterval(() => {
+          // Only fetch if still authenticated
+          if (isAuthenticated) {
+            fetchDashboardData()
+          }
+        }, 30000)
+        return () => clearInterval(interval)
+      } else {
+        router.push('/admin/login')
+      }
+    })
+  }, [isAuthenticated])
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/admin/verify', { credentials: 'include' })
+      return response.ok
+    } catch (error) {
+      return false
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
@@ -45,6 +68,11 @@ export default function AdminDashboard() {
           security: securityData,
           recent: casesData.recent || []
         })
+      } else if (casesResponse.status === 401 || securityResponse.status === 401) {
+        // Authentication failed, redirect to login
+        setIsAuthenticated(false)
+        router.push('/admin/login')
+        return
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)

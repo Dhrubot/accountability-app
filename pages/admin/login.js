@@ -37,6 +37,7 @@ export default function AdminLogin() {
       }
     } catch (error) {
       // Not logged in, stay on login page
+      // Suppress console errors for expected 401s on login page
     } finally {
       setIsCheckingAuth(false)
     }

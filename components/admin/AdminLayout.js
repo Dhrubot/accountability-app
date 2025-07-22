@@ -33,7 +33,12 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
     checkNotifications()
     
     // Set up notification polling (every 30 seconds)
-    const notificationInterval = setInterval(checkNotifications, 30000)
+    const notificationInterval = setInterval(() => {
+      // Only check notifications if admin is still authenticated
+      if (admin) {
+        checkNotifications()
+      }
+    }, 30000)
     
     // Click outside handler for notification dropdown
     const handleClickOutside = (event) => {
@@ -48,7 +53,7 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
       clearInterval(notificationInterval)
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [requireFreshAuth])
+  }, [requireFreshAuth, admin])
 
   const checkAuth = async (useFresh = false) => {
     try {
@@ -109,6 +114,11 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
       if (response.ok) {
         const data = await response.json()
         setNotifications(data.notifications || [])
+      } else if (response.status === 401) {
+        // Authentication failed, clear admin state and redirect
+        setAdmin(null)
+        localStorage.removeItem('adminInfo')
+        router.push('/admin/login')
       }
     } catch (error) {
       // Fail silently for notifications
@@ -163,15 +173,12 @@ export default function AdminLayout({ children, requireFreshAuth = false }) {
   const handleLogout = async () => {
     try {
       setIsLoading(true)
+      setAdmin(null)
+      localStorage.removeItem('adminInfo')
       await fetch('/api/admin/logout', {
         method: 'POST',
         credentials: 'include'
       })
-      
-      // Clear all stored data
-      localStorage.removeItem('adminInfo')
-      setAdmin(null)
-      
       router.push('/admin/login')
     } catch (error) {
       console.error('Logout failed:', error)
