@@ -1,7 +1,11 @@
-// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  
+  // Disable SSR for admin pages
+  async redirects() {
+    return []
+  },
   
   // Security headers
   async headers() {
@@ -28,6 +32,11 @@ const nextConfig = {
         ]
       }
     ]
+  },
+
+  // Disable SSR for admin pages
+  experimental: {
+    esmExternals: 'loose'
   }
 }
 
