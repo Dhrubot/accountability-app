@@ -50,14 +50,13 @@ export default async function handler(req, res) {
     // Get case details before update for comprehensive logging
     const { data: existingCase, error: fetchError } = await supabaseAdmin
       .from('cases')
-      .select('name, verification_status, created_at, user_id')
+      .select('name, verification_status, created_at')
       .eq('id', caseId)
       .single()
 
     if (fetchError) {
       console.error('Case fetch error:', fetchError)
       await logAdminActivity('case_verification_fetch_error', {
-        admin_id: auth.admin.id,
         details: {
           case_id: caseId,
           action,
@@ -65,7 +64,7 @@ export default async function handler(req, res) {
           ip_address: ip,
           timestamp: new Date().toISOString()
         }
-      })
+      }, auth.admin.id)
       return res.status(404).json({ error: 'Case not found' })
     }
 
@@ -108,7 +107,6 @@ export default async function handler(req, res) {
       target_id: caseId,
       details: {
         case_name: existingCase.name,
-        case_user_id: existingCase.user_id,
         previous_status: existingCase.verification_status,
         new_status: newStatus,
         notes: sanitizedNotes,
