@@ -57,6 +57,7 @@ export default async function handler(req, res) {
     if (fetchError) {
       console.error('Case fetch error:', fetchError)
       await logAdminActivity('case_verification_fetch_error', {
+        admin_id: auth.admin.id,
         details: {
           case_id: caseId,
           action,
@@ -64,7 +65,7 @@ export default async function handler(req, res) {
           ip_address: ip,
           timestamp: new Date().toISOString()
         }
-      }, auth.admin.id)
+      })
       return res.status(404).json({ error: 'Case not found' })
     }
 
@@ -86,7 +87,6 @@ export default async function handler(req, res) {
       
       // Log update failures for debugging
       await logAdminActivity('case_verification_update_error', {
-        admin_id: auth.admin.id,
         details: {
           case_id: caseId,
           action,
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
           ip_address: ip,
           timestamp: new Date().toISOString()
         }
-      })
+      }, auth.admin.id)
       
       securityManager.updateMetrics('errors')
       return res.status(500).json({ error: 'Failed to update case' })
@@ -102,7 +102,6 @@ export default async function handler(req, res) {
 
     // Comprehensive activity logging with full context
     await logAdminActivity(`case_${action}`, {
-      admin_id: auth.admin.id,
       target_type: 'case',
       target_id: caseId,
       details: {
@@ -116,7 +115,7 @@ export default async function handler(req, res) {
         user_agent: req.headers['user-agent'],
         timestamp: new Date().toISOString()
       }
-    })
+    }, auth.admin.id)
 
     // Also log using AdminAuth for backward compatibility
     await AdminAuth.logActivity(
