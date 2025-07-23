@@ -24,13 +24,17 @@ export default function AdminCases() {
   const router = useRouter()
 
   useEffect(() => {
-    // Get filter from URL query
+    // Get filter from URL query on initial load only
     const { filter: urlFilter } = router.query
-    if (urlFilter) {
+    if (urlFilter && urlFilter !== filter) {
       setFilter(urlFilter)
     }
+  }, [router.query.filter]) // Only depend on the specific filter parameter
+
+  useEffect(() => {
+    // Fetch cases when filter or search changes
     fetchCases()
-  }, [filter, search, router.query])
+  }, [filter, search])
 
   const fetchCases = async () => {
     setIsLoading(true)
@@ -52,6 +56,16 @@ export default function AdminCases() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Handle filter change and update URL
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter)
+    // Update URL without causing a page reload
+    const url = newFilter === 'all' 
+      ? '/admin/cases' 
+      : `/admin/cases?filter=${newFilter}`
+    router.push(url, undefined, { shallow: true })
   }
 
   const handleAction = async (caseId, action, notes = '', verificationMethod = '') => {
@@ -287,7 +301,7 @@ export default function AdminCases() {
                 <FunnelIcon className="w-5 h-5 text-gray-400" />
                 <select
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
+                  onChange={(e) => handleFilterChange(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">All Cases</option>
