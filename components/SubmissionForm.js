@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import ReCAPTCHA from 'react-google-recaptcha'
-import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 
 export default function SubmissionForm() {
   const [formData, setFormData] = useState({
@@ -51,12 +51,174 @@ export default function SubmissionForm() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
+  const [validationErrors, setValidationErrors] = useState({})
+  const [fieldTouched, setFieldTouched] = useState({})
   const recaptchaRef = useRef()
+
+  // Validation functions
+  const validatePhoneNumber = (phone) => {
+    if (!phone) return { isValid: true, error: '' }
+    
+    const cleanPhone = phone.replace(/[\s-]/g, '')
+    const patterns = [
+      /^\+88\d{11}$/, // +88XXXXXXXXXXX
+      /^\d{11}$/, // XXXXXXXXXXX
+      /^01\d{9}$/ // 01XXXXXXXXX
+    ]
+    
+    const isValid = patterns.some(pattern => pattern.test(cleanPhone))
+    
+    return {
+      isValid,
+      error: isValid ? '' : 'Phone number must be +88XXXXXXXXXXX or 01XXXXXXXXX (11 digits)'
+    }
+  }
+
+  const validateEmail = (email) => {
+    if (!email) return { isValid: true, error: '' }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return {
+      isValid: emailRegex.test(email),
+      error: emailRegex.test(email) ? '' : 'Please enter a valid email address'
+    }
+  }
+
+  const validateRequired = (value, fieldName) => {
+    const isValid = value && value.trim().length > 0
+    return {
+      isValid,
+      error: isValid ? '' : `${fieldName} is required`
+    }
+  }
+
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'name':
+        return validateRequired(value, 'Full Name')
+      case 'submitterName':
+        return validateRequired(value, 'Submitter Name')
+      case 'submitterContact':
+        const requiredCheck = validateRequired(value, 'Submitter Contact')
+        if (!requiredCheck.isValid) return requiredCheck
+        return validatePhoneNumber(value)
+      case 'contactPhone':
+      case 'emergencyContact':
+        return validatePhoneNumber(value)
+      case 'contactEmail':
+        return validateEmail(value)
+      case 'age':
+        if (!value) return { isValid: true, error: '' }
+        const numAge = parseInt(value)
+        return {
+          isValid: numAge >= 1 && numAge <= 120,
+          error: (numAge >= 1 && numAge <= 120) ? '' : 'Age must be between 1 and 120'
+        }
+      case 'nidLast4':
+        if (!value) return { isValid: true, error: '' }
+        return {
+          isValid: /^\d{4}$/.test(value),
+          error: /^\d{4}$/.test(value) ? '' : 'NID last 4 digits must be exactly 4 numbers'
+        }
+      default:
+        return { isValid: true, error: '' }
+    }
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    
+    setFormData({
+      ...formData,
+      [name]: value
+    })
+
+    // Real-time validation
+    if (fieldTouched[name]) {
+      const validation = validateField(name, value)
+      setValidationErrors(prev => ({
+        ...prev,
+        [name]: validation.error
+      }))
+    }
+  }
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target
+    setFieldTouched(prev => ({
+      ...prev,
+      [name]: true
+    }))
+    
+    // Validate on blur
+    const validation = validateField(name, value)
+    setValidationErrors(prev => ({
+      ...prev,
+      [name]: validation.error
+    }))
+  }
+
+  const validateForm = () => {
+    const errors = {}
+    const requiredFields = ['name', 'submitterName', 'submitterContact']
+    
+    // Validate all fields
+    Object.keys(formData).forEach(field => {
+      const validation = validateField(field, formData[field])
+      if (!validation.isValid) {
+        errors[field] = validation.error
+      }
+    })
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const getFieldError = (fieldName) => {
+    return fieldTouched[fieldName] && validationErrors[fieldName]
+  }
+
+  const getInputClassName = (fieldName, baseClassName = '') => {
+    const hasError = getFieldError(fieldName)
+    const baseClasses = baseClassName || 'w-full px-4 py-3 border-2 rounded-xl focus:ring-2 transition-all duration-200'
+    
+    if (hasError) {
+      return `${baseClasses} border-red-300 focus:border-red-500 focus:ring-red-200 bg-red-50`
+    }
+    
+    return `${baseClasses} border-gray-200 focus:border-blue-500 focus:ring-blue-200 bg-white`
+  }
+
+  const renderFieldError = (fieldName) => {
+    const error = getFieldError(fieldName)
+    if (!error) return null
+    
+    return (
+      <div className="mt-1 flex items-center text-sm text-red-600">
+        <XCircleIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+        <span>{error}</span>
+      </div>
+    )
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
     setMessage('')
+
+    // Validate form before submission
+    if (!validateForm()) {
+      setIsSubmitting(false)
+      setMessage('Please fix the validation errors before submitting.')
+      // Mark all fields as touched to show errors
+      const allFields = Object.keys(formData)
+      const touchedFields = {}
+      allFields.forEach(field => {
+        touchedFields[field] = true
+      })
+      setFieldTouched(touchedFields)
+      return
+    }
 
     try {
       // Get reCAPTCHA token
@@ -89,8 +251,23 @@ export default function SubmissionForm() {
           description: '', medicalConditions: '', distinguishingFeatures: '',
           submitterName: '', submitterRelationship: '', submitterContact: ''
         })
+        setValidationErrors({})
+        setFieldTouched({})
         setCurrentStep(1)
       } else {
+        // Handle specific backend validation errors
+        if (result.error && result.error.includes('phone number format')) {
+          setValidationErrors(prev => ({
+            ...prev,
+            submitterContact: 'Invalid phone number format. Use +88XXXXXXXXXXX or 01XXXXXXXXX',
+            contactPhone: formData.contactPhone ? 'Invalid phone number format. Use +88XXXXXXXXXXX or 01XXXXXXXXX' : ''
+          }))
+          setFieldTouched(prev => ({
+            ...prev,
+            submitterContact: true,
+            contactPhone: formData.contactPhone ? true : prev.contactPhone
+          }))
+        }
         setMessage(`Error: ${result.error}`)
       }
     } catch (error) {
@@ -98,13 +275,6 @@ export default function SubmissionForm() {
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
   }
 
   const nextStep = () => setCurrentStep(Math.min(4, currentStep + 1))
@@ -150,14 +320,16 @@ export default function SubmissionForm() {
             name="name"
             value={formData.name}
             onChange={handleChange}
+            onBlur={handleBlur}
             required
             placeholder="Enter full name as per school records"
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white"
+            className={getInputClassName('name')}
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-gray-400">👤</span>
           </div>
         </div>
+        {renderFieldError('name')}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -168,11 +340,13 @@ export default function SubmissionForm() {
             name="age"
             value={formData.age}
             onChange={handleChange}
+            onBlur={handleBlur}
             min="1"
             max="120"
             placeholder="Age"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
+            className={getInputClassName('age')}
           />
+          {renderFieldError('age')}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
@@ -259,14 +433,15 @@ export default function SubmissionForm() {
             name="studentId"
             value={formData.studentId}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="e.g., MS2024001"
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+            className={getInputClassName('studentId')}
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-gray-400">🆔</span>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-1">School-issued student ID number</p>
+        {renderFieldError('studentId')}
       </div>
 
       <div className="grid grid-cols-3 gap-4">
@@ -277,9 +452,11 @@ export default function SubmissionForm() {
             name="classGrade"
             value={formData.classGrade}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="e.g., 10"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+            className={getInputClassName('classGrade')}
           />
+          {renderFieldError('classGrade')}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
@@ -288,9 +465,11 @@ export default function SubmissionForm() {
             name="section"
             value={formData.section}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="e.g., A"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+            className={getInputClassName('section')}
           />
+          {renderFieldError('section')}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Roll Number</label>
@@ -299,9 +478,11 @@ export default function SubmissionForm() {
             name="rollNumber"
             value={formData.rollNumber}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="e.g., 15"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+            className={getInputClassName('rollNumber')}
           />
+          {renderFieldError('rollNumber')}
         </div>
       </div>
 
@@ -314,13 +495,15 @@ export default function SubmissionForm() {
               name="fathersName"
               value={formData.fathersName}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="Father's full name"
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+              className={getInputClassName('fathersName')}
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-400">👨</span>
             </div>
           </div>
+          {renderFieldError('fathersName')}
         </div>
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Name</label>
@@ -330,13 +513,15 @@ export default function SubmissionForm() {
               name="mothersName"
               value={formData.mothersName}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="Mother's full name"
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+              className={getInputClassName('mothersName')}
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-400">👩</span>
             </div>
           </div>
+          {renderFieldError('mothersName')}
         </div>
       </div>
 
@@ -348,13 +533,15 @@ export default function SubmissionForm() {
             name="guardianName"
             value={formData.guardianName}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="Guardian's full name"
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
+            className={getInputClassName('guardianName')}
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-gray-400">👥</span>
           </div>
         </div>
+        {renderFieldError('guardianName')}
       </div>
     </div>
   )
@@ -380,14 +567,16 @@ export default function SubmissionForm() {
               name="contactPhone"
               value={formData.contactPhone}
               onChange={handleChange}
+              onBlur={handleBlur}
               required
               placeholder="+8801XXXXXXXXX"
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+              className={getInputClassName('contactPhone')}
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-400">📱</span>
             </div>
           </div>
+          {renderFieldError('contactPhone')}
         </div>
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact</label>
@@ -397,13 +586,15 @@ export default function SubmissionForm() {
               name="emergencyContact"
               value={formData.emergencyContact}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="Alternative contact number"
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+              className={getInputClassName('emergencyContact')}
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-400">🆘</span>
             </div>
           </div>
+          {renderFieldError('emergencyContact')}
         </div>
       </div>
 
@@ -415,13 +606,15 @@ export default function SubmissionForm() {
             name="contactEmail"
             value={formData.contactEmail}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="your.email@example.com"
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+            className={getInputClassName('contactEmail')}
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-gray-400">✉️</span>
           </div>
         </div>
+        {renderFieldError('contactEmail')}
       </div>
 
       <div className="relative">
@@ -431,14 +624,16 @@ export default function SubmissionForm() {
             name="address"
             value={formData.address}
             onChange={handleChange}
+            onBlur={handleBlur}
             rows="2"
             placeholder="Full address"
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200 resize-none"
+            className={getInputClassName('address', 'w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200 resize-none')}
           />
           <div className="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
             <span className="text-gray-400">🏠</span>
           </div>
         </div>
+        {renderFieldError('address')}
       </div>
 
       <div className="relative">
@@ -449,13 +644,15 @@ export default function SubmissionForm() {
             name="lastSeenLocation"
             value={formData.lastSeenLocation}
             onChange={handleChange}
+            onBlur={handleBlur}
             placeholder="e.g., School cafeteria, classroom 10A"
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+            className={getInputClassName('lastSeenLocation')}
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-gray-400">📍</span>
           </div>
         </div>
+        {renderFieldError('lastSeenLocation')}
       </div>
 
       <div className="relative">
@@ -466,12 +663,14 @@ export default function SubmissionForm() {
             name="lastSeenTime"
             value={formData.lastSeenTime}
             onChange={handleChange}
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200"
+            onBlur={handleBlur}
+            className={getInputClassName('lastSeenTime')}
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <span className="text-gray-400">🕐</span>
           </div>
         </div>
+        {renderFieldError('lastSeenTime')}
       </div>
 
       {(formData.status === 'injured' || formData.status === 'safe') && (
@@ -488,9 +687,11 @@ export default function SubmissionForm() {
                 name="hospitalFacility"
                 value={formData.hospitalFacility}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 placeholder="Hospital name"
-                className="w-full px-4 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-200"
+                className={getInputClassName('hospitalFacility', 'w-full px-4 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-200')}
               />
+              {renderFieldError('hospitalFacility')}
             </div>
             <div>
               <label className="block text-sm font-medium text-green-700 mb-1">Room/Ward Number</label>
@@ -499,9 +700,11 @@ export default function SubmissionForm() {
                 name="roomWard"
                 value={formData.roomWard}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 placeholder="Room or ward number"
-                className="w-full px-4 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-200"
+                className={getInputClassName('roomWard', 'w-full px-4 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-200')}
               />
+              {renderFieldError('roomWard')}
             </div>
           </div>
         </div>
@@ -526,14 +729,16 @@ export default function SubmissionForm() {
             name="description"
             value={formData.description}
             onChange={handleChange}
+            onBlur={handleBlur}
             rows="4"
             placeholder="Any additional information that might help..."
-            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200 resize-none"
+            className={getInputClassName('description', 'w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200 resize-none')}
           />
           <div className="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
             <span className="text-gray-400">💬</span>
           </div>
         </div>
+        {renderFieldError('description')}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -545,13 +750,15 @@ export default function SubmissionForm() {
               name="medicalConditions"
               value={formData.medicalConditions}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="Known medical conditions or allergies"
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200"
+              className={getInputClassName('medicalConditions')}
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-400">🏥</span>
             </div>
           </div>
+          {renderFieldError('medicalConditions')}
         </div>
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-2">Distinguishing Features</label>
@@ -561,13 +768,15 @@ export default function SubmissionForm() {
               name="distinguishingFeatures"
               value={formData.distinguishingFeatures}
               onChange={handleChange}
+              onBlur={handleBlur}
               placeholder="Scars, birthmarks, clothing worn, etc."
-              className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200"
+              className={getInputClassName('distinguishingFeatures')}
             />
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-400">👁️</span>
             </div>
           </div>
+          {renderFieldError('distinguishingFeatures')}
         </div>
       </div>
 
@@ -588,14 +797,16 @@ export default function SubmissionForm() {
                 name="submitterName"
                 value={formData.submitterName}
                 onChange={handleChange}
+                onBlur={handleBlur}
                 required
                 placeholder="Your full name"
-                className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white"
+                className={getInputClassName('submitterName')}
               />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <span className="text-blue-400">✍️</span>
               </div>
             </div>
+            {renderFieldError('submitterName')}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,6 +819,7 @@ export default function SubmissionForm() {
                   name="submitterRelationship"
                   value={formData.submitterRelationship}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   className="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 appearance-none bg-white"
                 >
@@ -629,6 +841,7 @@ export default function SubmissionForm() {
                   </svg>
                 </div>
               </div>
+              {renderFieldError('submitterRelationship')}
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -640,14 +853,16 @@ export default function SubmissionForm() {
                   name="submitterContact"
                   value={formData.submitterContact}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   required
                   placeholder="+8801XXXXXXXXX"
-                  className="w-full pl-10 pr-4 py-3 border-2 border-blue-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white"
+                  className={getInputClassName('submitterContact')}
                 />
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <span className="text-blue-400">📞</span>
                 </div>
               </div>
+              {renderFieldError('submitterContact')}
             </div>
           </div>
         </div>
