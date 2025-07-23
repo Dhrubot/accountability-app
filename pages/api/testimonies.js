@@ -49,7 +49,9 @@ function invalidateTestimoniesCache(caseId = null) {
     testimoniesCache.clear()
     testimoniesCacheTimestamps.clear()
   }
-  console.log(`Testimonies cache invalidated for case ${caseId || 'all'}`)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Testimonies cache invalidated for case ${caseId || 'all'}`)
+  }
 }
 
 export default async function handler(req, res) {

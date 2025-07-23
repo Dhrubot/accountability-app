@@ -38,7 +38,9 @@ export default function StatsDashboard() {
       if (response.ok) {
         // Show cache status in console for debugging
         if (data.cached) {
-          console.log(`📦 Stats served from cache (${data.cacheAge}s old)`)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📦 Stats served from cache (${data.cacheAge}s old)`)
+          }
         }
         
         setStats(data)

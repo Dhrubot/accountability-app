@@ -67,7 +67,9 @@ export default function AdminDashboard() {
 
         // Show cache status in console for debugging
         if (data.cached) {
-          console.log(`📦 Dashboard data served from cache (${data.cacheAge}s old)`)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📦 Dashboard data served from cache (${data.cacheAge}s old)`)
+          }
         }
 
         setStats({

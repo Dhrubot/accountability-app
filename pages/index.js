@@ -42,7 +42,9 @@ export default function Home() {
         
         // Show cache status for debugging
         if (data.cached) {
-          console.log(`📦 Public data served from cache (${data.cacheAge}s old)`)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📦 Public data served from cache (${data.cacheAge}s old)`)
+          }
         }
       }
     } catch (error) {

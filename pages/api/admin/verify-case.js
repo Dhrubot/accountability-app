@@ -32,7 +32,9 @@ function invalidateAllCasesCache(caseId) {
   if (invalidateCasesCache) invalidateCasesCache(caseId)
   if (invalidatePublicCasesCache) invalidatePublicCasesCache()
   if (invalidateTestimoniesCache) invalidateTestimoniesCache(caseId)
-  console.log(`All caches invalidated for case verification: ${caseId}`)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`All caches invalidated for case verification: ${caseId}`)
+  }
 }
 
 export default async function handler(req, res) {

@@ -40,7 +40,9 @@ export default function AdminSecurity() {
         
         // Show cache status in console for debugging
         if (data.cached) {
-          console.log(`📦 Security metrics served from cache (${data.cacheAge}s old)`)
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📦 Security metrics served from cache (${data.cacheAge}s old)`)
+          }
         }
         
         setMetrics(data)
