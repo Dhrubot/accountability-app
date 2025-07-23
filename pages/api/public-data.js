@@ -91,7 +91,7 @@ async function fetchCases({ search, status, page, limit }) {
   let query = supabase
     .from('cases')
     .select('*')
-    .in('verification_status', ['verified', 'pending'])
+    .eq('verification_status', 'verified')
     .order('created_at', { ascending: false })
 
   if (search) {
@@ -107,7 +107,7 @@ async function fetchCases({ search, status, page, limit }) {
   const { count } = await supabase
     .from('cases')
     .select('*', { count: 'exact', head: true })
-    .in('verification_status', ['verified', 'pending'])
+    .eq('verification_status', 'verified')
 
   // Apply pagination
   const offset = (page - 1) * limit
