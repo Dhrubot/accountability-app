@@ -1,7 +1,8 @@
 // components/CasesList.js
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { PencilSquareIcon } from '@heroicons/react/24/outline'
 
-export default function CasesList({ publicData, onSearch, isLoading }) {
+export default function CasesList({ publicData, onSearch, isLoading, showUpdateButton = false, onCaseSelect }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
@@ -340,15 +341,27 @@ export default function CasesList({ publicData, onSearch, isLoading }) {
                     </div>
                     
                     <div className="mt-4 pt-4 border-t border-gray-100">
-                      <p className="text-xs text-gray-500">
-                        Reported: {new Date(case_.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs text-gray-500">
+                          Reported: {new Date(case_.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        {showUpdateButton && onCaseSelect && (
+                          <button
+                            onClick={() => onCaseSelect(case_)}
+                            className="flex items-center gap-1 px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors duration-200 font-medium"
+                            title="Update this case"
+                          >
+                            <PencilSquareIcon className="w-3 h-3" />
+                            Update
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

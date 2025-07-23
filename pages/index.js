@@ -10,13 +10,15 @@ import {
   ChartBarIcon,
   HeartIcon,
   ShieldCheckIcon,
-  ClockIcon
+  ClockIcon,
+  PencilSquareIcon
 } from '@heroicons/react/24/outline'
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('cases')
   const [publicData, setPublicData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedCaseForUpdate, setSelectedCaseForUpdate] = useState(null)
 
   // Fetch combined public data once when component mounts
   useEffect(() => {
@@ -66,6 +68,13 @@ export default function Home() {
       color: 'green'
     },
     { 
+      id: 'update', 
+      label: 'Update Case', 
+      icon: PencilSquareIcon,
+      description: 'Update an existing case',
+      color: 'orange'
+    },
+    { 
       id: 'stats', 
       label: 'Live Statistics', 
       icon: ChartBarIcon,
@@ -82,11 +91,24 @@ export default function Home() {
       green: active 
         ? 'border-green-500 text-green-600 bg-green-50' 
         : 'border-transparent text-gray-500 hover:text-green-600 hover:border-green-300',
+      orange: active 
+        ? 'border-orange-500 text-orange-600 bg-orange-50' 
+        : 'border-transparent text-gray-500 hover:text-orange-600 hover:border-orange-300',
       purple: active 
         ? 'border-purple-500 text-purple-600 bg-purple-50' 
         : 'border-transparent text-gray-500 hover:text-purple-600 hover:border-purple-300'
     }
     return colors[color] || colors.blue
+  }
+
+  const handleCaseSelect = (caseData) => {
+    setSelectedCaseForUpdate(caseData)
+    setActiveTab('submit') // Switch to submission form with pre-populated data
+  }
+
+  const handleCancelUpdate = () => {
+    setSelectedCaseForUpdate(null)
+    setActiveTab('cases')
   }
 
   return (
@@ -210,12 +232,55 @@ export default function Home() {
                   publicData={publicData} 
                   onSearch={fetchPublicData}
                   isLoading={isLoading}
+                  showUpdateButton={true}
+                  onCaseSelect={handleCaseSelect}
                 />
               </div>
             )}
             {activeTab === 'submit' && (
               <div className="animate-fadeIn">
-                <SubmissionForm />
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {selectedCaseForUpdate ? 'Update Case' : 'Submit New Case'}
+                  </h3>
+                  {selectedCaseForUpdate && (
+                    <p className="text-gray-600">Update existing case: {selectedCaseForUpdate.name}</p>
+                  )}
+                </div>
+                <SubmissionForm 
+                  initialData={selectedCaseForUpdate}
+                  isUpdate={!!selectedCaseForUpdate}
+                  onSubmitSuccess={() => {
+                    setSelectedCaseForUpdate(null)
+                    setActiveTab('cases')
+                    fetchPublicData() // Refresh data
+                  }}
+                />
+                {selectedCaseForUpdate && (
+                  <button
+                    onClick={handleCancelUpdate}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel Update
+                  </button>
+                )}
+              </div>
+            )}
+            {activeTab === 'update' && (
+              <div className="animate-fadeIn">
+                <div className="text-center py-12">
+                  <PencilSquareIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Update Existing Case</h2>
+                  <p className="text-gray-600 mb-6">
+                    Select a case from the "View Cases" tab to update its information
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('cases')}
+                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Browse Cases
+                  </button>
+                </div>
               </div>
             )}
             {activeTab === 'stats' && (

@@ -82,7 +82,7 @@ export default async function handler(req, res) {
     // Get case details before update for comprehensive logging
     const { data: existingCase, error: fetchError } = await supabaseAdmin
       .from('cases')
-      .select('name, verification_status, created_at')
+      .select('name, verification_status, created_at, is_update, original_case_id')
       .eq('id', caseId)
       .single()
 
@@ -101,7 +101,101 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Case not found' })
     }
 
-    // Update case using admin client to bypass RLS
+    // Handle update submissions differently when verifying
+    if (existingCase.is_update && existingCase.original_case_id && action === 'verify') {
+      // This is an update submission being verified - update the original case
+      const { data: updateSubmission, error: updateFetchError } = await supabaseAdmin
+        .from('cases')
+        .select('*')
+        .eq('id', caseId)
+        .single()
+
+      if (updateFetchError) {
+        return res.status(404).json({ error: 'Update submission not found' })
+      }
+
+      // Update the original case with the new data
+      const { data: updatedOriginalCase, error: originalUpdateError } = await supabaseAdmin
+        .from('cases')
+        .update({
+          // Update all fields from the update submission
+          name: updateSubmission.name,
+          age: updateSubmission.age,
+          gender: updateSubmission.gender,
+          status: updateSubmission.status,
+          student_id: updateSubmission.student_id,
+          class_grade: updateSubmission.class_grade,
+          section: updateSubmission.section,
+          roll_number: updateSubmission.roll_number,
+          fathers_name: updateSubmission.fathers_name,
+          mothers_name: updateSubmission.mothers_name,
+          guardian_name: updateSubmission.guardian_name,
+          nid_last_4: updateSubmission.nid_last_4,
+          birth_cert_number: updateSubmission.birth_cert_number,
+          contact_email: updateSubmission.contact_email,
+          contact_phone: updateSubmission.contact_phone,
+          emergency_contact: updateSubmission.emergency_contact,
+          address: updateSubmission.address,
+          last_seen_location: updateSubmission.last_seen_location,
+          last_seen_time: updateSubmission.last_seen_time,
+          hospital_facility: updateSubmission.hospital_facility,
+          room_ward: updateSubmission.room_ward,
+          description: updateSubmission.description,
+          medical_conditions: updateSubmission.medical_conditions,
+          distinguishing_features: updateSubmission.distinguishing_features,
+          submitter_name: updateSubmission.submitter_name,
+          submitter_relationship: updateSubmission.submitter_relationship,
+          submitter_contact: updateSubmission.submitter_contact,
+          // Update metadata
+          updated_at: new Date().toISOString(),
+          last_updated_by: auth.admin.id
+        })
+        .eq('id', existingCase.original_case_id)
+        .select()
+
+      if (originalUpdateError) {
+        console.error('Original case update error:', originalUpdateError)
+        return res.status(500).json({ error: 'Failed to update original case' })
+      }
+
+      // Mark the update submission as processed and delete it
+      const { error: deleteError } = await supabaseAdmin
+        .from('cases')
+        .delete()
+        .eq('id', caseId)
+
+      if (deleteError) {
+        console.error('Update submission deletion error:', deleteError)
+        // Don't fail the request if deletion fails, just log it
+      }
+
+      // Log the update activity
+      await logAdminActivity('case_updated', {
+        admin_id: auth.admin.id,
+        details: {
+          original_case_id: existingCase.original_case_id,
+          update_submission_id: caseId,
+          updated_fields: Object.keys(updateSubmission).filter(key => 
+            !['id', 'created_at', 'is_update', 'original_case_id'].includes(key)
+          ),
+          verification_method: sanitizedMethod,
+          verification_notes: sanitizedNotes,
+          ip_address: ip,
+          timestamp: new Date().toISOString()
+        }
+      })
+
+      // Invalidate caches
+      invalidateAllCasesCache(existingCase.original_case_id)
+
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Case updated successfully',
+        updatedCase: updatedOriginalCase[0]
+      })
+    }
+
+    // Regular case verification (not an update)
     const { data: updatedCase, error: updateError } = await supabaseAdmin
       .from('cases')
       .update({

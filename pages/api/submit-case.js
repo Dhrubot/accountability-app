@@ -150,7 +150,13 @@ export default async function handler(req, res) {
       verification_method: verificationMethods.join(', '),
       submission_ip: ip,
       data_hash: dataHash,
-      priority_level: sanitizedData.status === 'missing' ? 2 : 1 // Higher priority for missing persons
+      priority_level: sanitizedData.status === 'missing' ? 2 : 1, // Higher priority for missing persons
+      // Add update metadata if this is an update submission
+      ...(req.body.isUpdate && {
+        is_update: true,
+        original_case_id: req.body.originalCaseId,
+        update_reason: securityManager.sanitizeInput(req.body.updateReason || 'Case update')
+      })
     }
 
     // Insert into database

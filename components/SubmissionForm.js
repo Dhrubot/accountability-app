@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ReCAPTCHA from 'react-google-recaptcha'
 import { CheckCircleIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline'
 
-export default function SubmissionForm() {
+export default function SubmissionForm({ initialData = null, isUpdate = false, onSubmitSuccess }) {
   const [formData, setFormData] = useState({
     // Basic Information
     name: '',
@@ -48,6 +48,41 @@ export default function SubmissionForm() {
     submitterContact: ''
   })
 
+  // Populate form with initial data when updating
+  useEffect(() => {
+    if (initialData && isUpdate) {
+      setFormData({
+        name: initialData.name || '',
+        age: initialData.age || '',
+        gender: initialData.gender || '',
+        status: initialData.status || 'missing',
+        studentId: initialData.student_id || '',
+        classGrade: initialData.class_grade || '',
+        section: initialData.section || '',
+        rollNumber: initialData.roll_number || '',
+        fathersName: initialData.fathers_name || '',
+        mothersName: initialData.mothers_name || '',
+        guardianName: initialData.guardian_name || '',
+        nidLast4: initialData.nid_last_4 || '',
+        birthCertNumber: initialData.birth_cert_number || '',
+        contactEmail: initialData.contact_email || '',
+        contactPhone: initialData.contact_phone || '',
+        emergencyContact: initialData.emergency_contact || '',
+        address: initialData.address || '',
+        lastSeenLocation: initialData.last_seen_location || '',
+        lastSeenTime: initialData.last_seen_time || '',
+        hospitalFacility: initialData.hospital_facility || '',
+        roomWard: initialData.room_ward || '',
+        description: initialData.description || '',
+        medicalConditions: initialData.medical_conditions || '',
+        distinguishingFeatures: initialData.distinguishing_features || '',
+        submitterName: initialData.submitter_name || '',
+        submitterRelationship: initialData.submitter_relationship || '',
+        submitterContact: initialData.submitter_contact || ''
+      })
+    }
+  }, [initialData, isUpdate])
+
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('')
@@ -81,13 +116,13 @@ export default function SubmissionForm() {
           const cleanValue = value.replace(/[\s-()]/g, '') // Remove spaces, dashes, parentheses
 
           // Bangladesh phone number validation
-          // Format 1: +880XXXXXXXXXX (13 digits total)
+          // Format 1: +880XXXXXXXXXX (14 digits total)
           // Format 2: 01XXXXXXXXX (11 digits total)
 
           if (cleanValue.startsWith('+880')) {
-            // Must be exactly 13 characters total (+880 + 10 digits)
-            if (cleanValue.length !== 13) {
-              return 'Bangladesh number with +880 must be 13 digits total (e.g., +8801712345678)'
+            // Must be exactly 14 characters total (+880 + 10 digits)
+            if (cleanValue.length !== 14) {
+              return 'Bangladesh number with +880 must be 14 digits total (e.g., +8801712345678)'
             }
             // Must start with +880 followed by 10 digits
             if (!cleanValue.match(/^\+880[0-9]{10}$/)) {
@@ -264,13 +299,16 @@ export default function SubmissionForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Validate all fields
+    const newErrors = {}
+    Object.keys(formData).forEach(field => {
+      const error = validateField(field, formData[field])
+      if (error) newErrors[field] = error
+    })
 
-    // Validate all fields before submission
-    const allErrors = validateAllFields()
-
-    if (Object.keys(allErrors).length > 0) {
-      setErrors(allErrors)
-      setTouched(Object.fromEntries(Object.keys(allErrors).map(key => [key, true])))
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
       setMessage('Please fix the errors above before submitting.')
       return
     }
@@ -282,6 +320,17 @@ export default function SubmissionForm() {
       // Get reCAPTCHA token
       const recaptchaToken = await recaptchaRef.current.executeAsync()
       recaptchaRef.current.reset()
+
+      const submitData = {
+        ...formData,
+        recaptchaToken,
+        // Add metadata for updates
+        ...(isUpdate && initialData && {
+          isUpdate: true,
+          originalCaseId: initialData.id,
+          updateReason: `Status update from ${initialData.status} to ${formData.status}`
+        })
+      }
 
       const response = await fetch('/api/submit-case', {
         method: 'POST',
@@ -297,26 +346,39 @@ export default function SubmissionForm() {
       const result = await response.json()
 
       if (response.ok) {
-        setMessage('Case submitted successfully. It will be reviewed for verification.')
-        // Reset form
-        setFormData({
-          name: '', age: '', gender: '', status: 'missing',
-          studentId: '', classGrade: '', section: '', rollNumber: '',
-          fathersName: '', mothersName: '', guardianName: '',
-          nidLast4: '', birthCertNumber: '',
-          contactEmail: '', contactPhone: '', emergencyContact: '', address: '',
-          lastSeenLocation: '', lastSeenTime: '', hospitalFacility: '', roomWard: '',
-          description: '', medicalConditions: '', distinguishingFeatures: '',
-          submitterName: '', submitterRelationship: '', submitterContact: ''
-        })
+        setMessage(isUpdate 
+          ? 'Case update submitted successfully! It will be reviewed by our team.' 
+          : 'Case submitted successfully! Thank you for your contribution.'
+        )
+        
+        // Reset form if it's a new submission
+        if (!isUpdate) {
+          setFormData({
+            name: '', age: '', gender: '', status: 'missing',
+            studentId: '', classGrade: '', section: '', rollNumber: '',
+            fathersName: '', mothersName: '', guardianName: '',
+            nidLast4: '', birthCertNumber: '',
+            contactEmail: '', contactPhone: '', emergencyContact: '', address: '',
+            lastSeenLocation: '', lastSeenTime: '', hospitalFacility: '', roomWard: '',
+            description: '', medicalConditions: '', distinguishingFeatures: '',
+            submitterName: '', submitterRelationship: '', submitterContact: ''
+          })
+        }
+        
         setCurrentStep(1)
         setErrors({})
         setTouched({})
+        
+        // Call success callback if provided
+        if (onSubmitSuccess) {
+          setTimeout(onSubmitSuccess, 2000) // Give user time to see success message
+        }
       } else {
-        setMessage(`Error: ${result.error}`)
+        setMessage(result.error || 'Failed to submit case. Please try again.')
       }
     } catch (error) {
-      setMessage('Network error. Please try again.')
+      console.error('Submission error:', error)
+      setMessage('Network error. Please check your connection and try again.')
     } finally {
       setIsSubmitting(false)
     }
