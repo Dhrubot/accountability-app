@@ -369,31 +369,29 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                
-                {/* Support Contact */}
-                <div className="mt-6 pt-4 border-t border-gray-700">
-                  <h5 className="text-md font-medium mb-2 text-gray-200">Need Help?</h5>
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-700 mt-8 pt-8">
+              <div className="text-center">
+                <p className="text-gray-400 mb-3">
+                  This platform is dedicated to truth, transparency, and remembrance. 
+                  All submissions are verified to ensure accuracy and prevent misinformation.
+                </p>
+                <div className="flex items-center justify-center mb-2">
+                  <h5 className="text-md font-medium mr-3 text-gray-200">Need Help?</h5>
                   <a 
                     href="mailto:support@onushondhan.org" 
                     className="text-blue-400 hover:text-blue-300 transition-colors duration-200 text-sm flex items-center"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v10a2 2 0 002 2z" />
                     </svg>
                     support@onushondhan.org
                   </a>
                 </div>
+                <p className="text-gray-500 text-sm">Protected by Cloudflare</p>
               </div>
-            </div>
-            
-            <div className="border-t border-gray-700 mt-8 pt-8 text-center">
-              <p className="text-gray-400">
-                This platform is dedicated to truth, transparency, and remembrance. 
-                All submissions are verified to ensure accuracy and prevent misinformation.
-              </p>
-              <p className="text-gray-500 mt-2 text-sm">
-                Built with Next.js • Secured with Supabase • Protected by Cloudflare
-              </p>
             </div>
           </div>
         </footer>
