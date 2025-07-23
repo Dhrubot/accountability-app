@@ -1,5 +1,5 @@
 // pages/index.js
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Head from 'next/head'
 import SubmissionForm from '../components/SubmissionForm'
 import CasesList from '../components/CasesList'
@@ -15,6 +15,40 @@ import {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('cases')
+  const [publicData, setPublicData] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Fetch combined public data once when component mounts
+  useEffect(() => {
+    fetchPublicData()
+  }, [])
+
+  const fetchPublicData = async (params = {}) => {
+    try {
+      setIsLoading(true)
+      const searchParams = new URLSearchParams({
+        page: '1',
+        limit: '20',
+        ...params
+      })
+      
+      const response = await fetch(`/api/public-data?${searchParams}`)
+      const data = await response.json()
+      
+      if (response.ok) {
+        setPublicData(data)
+        
+        // Show cache status for debugging
+        if (data.cached) {
+          console.log(`📦 Public data served from cache (${data.cacheAge}s old)`)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch public data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const tabs = [
     { 
@@ -172,7 +206,11 @@ export default function Home() {
                   <h3 className="text-2xl font-bold text-gray-800 mb-2">Cases Directory</h3>
                   <p className="text-gray-600">Browse all verified and pending cases</p>
                 </div>
-                <CasesList />
+                <CasesList 
+                  publicData={publicData} 
+                  onSearch={fetchPublicData}
+                  isLoading={isLoading}
+                />
               </div>
             )}
             {activeTab === 'submit' && (
@@ -184,9 +222,13 @@ export default function Home() {
               <div className="animate-fadeIn">
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold text-gray-800 mb-2">Live Statistics</h3>
-                  <p className="text-gray-600">Real-time data and verification progress</p>
+                  <p className="text-gray-600">Real-time data and insights</p>
                 </div>
-                <StatsDashboard />
+                <StatsDashboard 
+                  statsData={publicData?.stats}
+                  onRefresh={() => fetchPublicData({ fresh: 'true' })}
+                  isLoading={isLoading}
+                />
               </div>
             )}
           </div>

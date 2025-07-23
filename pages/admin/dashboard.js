@@ -54,40 +54,28 @@ export default function AdminDashboard() {
       // Use fresh=true for manual refreshes to bypass cache
       const freshParam = isManualRefresh ? '?fresh=true' : ''
       
-      // Fetch stats
-      const [casesResponse, securityResponse] = await Promise.all([
-        fetch(`/api/admin/stats${freshParam}`, { 
-          credentials: 'include',
-          headers: {
-            'Cache-Control': isManualRefresh ? 'no-cache' : 'max-age=300'
-          }
-        }),
-        fetch(`/api/admin/security-metrics${freshParam}`, { 
-          credentials: 'include',
-          headers: {
-            'Cache-Control': isManualRefresh ? 'no-cache' : 'max-age=300'
-          }
-        })
-      ])
+      // Single combined API call instead of 2 separate calls
+      const response = await fetch(`/api/admin/dashboard-data${freshParam}`, { 
+        credentials: 'include',
+        headers: {
+          'Cache-Control': isManualRefresh ? 'no-cache' : 'max-age=300'
+        }
+      })
 
-      if (casesResponse.ok && securityResponse.ok) {
-        const casesData = await casesResponse.json()
-        const securityData = await securityResponse.json()
+      if (response.ok) {
+        const data = await response.json()
 
         // Show cache status in console for debugging
-        if (casesData.cached) {
-          console.log(`📦 Stats served from cache (${casesData.cacheAge}s old)`)
-        }
-        if (securityData.cached) {
-          console.log(`📦 Security metrics served from cache (${securityData.cacheAge}s old)`)
+        if (data.cached) {
+          console.log(`📦 Dashboard data served from cache (${data.cacheAge}s old)`)
         }
 
         setStats({
-          cases: casesData,
-          security: securityData,
-          recent: casesData.recent || []
+          cases: data.stats,
+          security: data.security,
+          recent: data.recent || []
         })
-      } else if (casesResponse.status === 401 || securityResponse.status === 401) {
+      } else if (response.status === 401) {
         // Authentication failed, redirect to login
         setIsAuthenticated(false)
         router.push('/admin/login')
